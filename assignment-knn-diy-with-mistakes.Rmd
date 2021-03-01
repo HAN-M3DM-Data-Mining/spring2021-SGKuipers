@@ -93,7 +93,7 @@ what is the proportion of the Occupancy.
 ```{r}
 cntOcc <- table(cleanDF$Occupancy) #Counting the Occupancy of 1 or 0
 propOcc <- round(prop.table(cntOcc) * 100 , digits = 1) #getting the distribution of this column
-cleanDF[1:4] <- round(cleanDF[1:4], digits = 1) #rounding data for better visibility of column 1 to 4
+cleanDF[1:4] <- round(cleanDF[1:4], digits = 5) #rounding data for better visibility of column 1 to 4
 cleanDF$HumidityRatio <- round(cleanDF$HumidityRatio, digits = 6) #rounding data for better visibility of column 5
 
 cntOcc 
@@ -142,11 +142,11 @@ Lets split the data set to a training set and a test set. One data frame
 set without the label and one with the label data set.
 
 ```{r}
-trainDF_feat <- cleanDF_n[1:4000,  ]
+
 testDF_feat <- cleanDF_n[4001:8143,  ]
 
 trainDF_labels <- as.data.frame(cleanDF[1:4000,  6]) #we use as.data.frame otherwise it sees it as values.
-testDF_labels <- as.data.frame(cleanDF[4001:8143,  6])
+
 ```
 
 We are done with preparing the data.
@@ -178,30 +178,11 @@ head(cleanDF_test_pred)
 Let's test how well the model has predicted the Occupancy.
 
 ```{r}
-confusionMatrix(cleanDF_test_pred, testDF_labels[[1]], positive = NULL, dnn = c("Prediction", "True"))
+confusionMatrix(cleanDF_test_pred, testDF_labels[[1]], positive = NULL, dnn = c("Prediction", "FALSE"))
 ```
 I believe the model is pretty accurate. Any suggestions or improvements are welcome :).
 
 ------------------------------------------------------------------------
-
-## Mistakes added for review
-
-For review i have made a few mistakes on purpose for review.
-
-Mistakes added:
-
-Did not clean very thorough 5 digits instead of 1:
-*cleanDF[1:4] <- round(cleanDF[1:4], digits = 5)*
-
-Deleted one set of the training models:
-*trainDF_feat <- cleanDF_n[1:4000,  ]*
-
-Deleted one set of the test models:
-*testDF_labels <- as.data.frame(cleanDF[4001:8143,  6])*
-
-Changes True for False in the confusionMatrix step.
-*confusionMatrix(cleanDF_test_pred, testDF_labels[[1]], positive = NULL, dnn = c("Prediction "FALSE"))*
-
-
-
-
+## Review
+Review In this part the reviewer describes improvements and
+suggestions.
