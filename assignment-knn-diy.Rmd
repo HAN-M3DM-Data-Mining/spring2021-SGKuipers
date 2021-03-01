@@ -186,7 +186,7 @@ I believe the model is pretty accurate. Any suggestions or improvements are welc
 
 ## Mistakes added for review
 
-For review i have made a few mistakes on purpose for review.
+For review i have made a few mistakes on purpose.
 
 Mistakes added:
 
@@ -201,7 +201,5 @@ Deleted one set of the test models:
 
 Changes True for False in the confusionMatrix step.
 *confusionMatrix(cleanDF_test_pred, testDF_labels[[1]], positive = NULL, dnn = c("Prediction "FALSE"))*
-
-
 
 
