@@ -1,0 +1,236 @@
+---
+title: "Assigment - kNN DIY problem 2"
+author:
+  - Author -Stijn Kuipers
+  - Reviewer - Semen Ploskov
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+   html_notebook:
+    toc: true
+    toc_depth: 2
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+First let's load all the packages we are going to use in this assignment
+
+```{r}
+library(tidyverse)
+library(dbplyr)
+library(class)
+library(caret)
+library(class)
+#possibly not needed
+library(e1071)
+library(readr)
+```
+
+------------------------------------------------------------------------
+
+Choose a suitable dataset from
+[this](https://github.com/HAN-M3DM-Data-Mining/assignments/tree/master/datasets)
+folder and train your own kNN model. Follow all the steps from the
+CRISP-DM model.
+
+I have chosen the hcvdat0.csv as my first. Let's load this data set
+directly from GitHub.
+
+## Business Understanding
+
+Before we start working on a data set we need to understand the business
+side of things. We understand that our data is about *Blood donors*. Which
+probably means different variable of information about blood. and whether there are potential blooddoner and which are not
+```{r}
+url <- "https://raw.githubusercontent.com/HAN-M3DM-Data-Mining/assignments/master/datasets/KNN-hcvdat0.csv"
+rawDF <- read.csv(url)
+```
+
+## Data Understanding
+
+There are lot's of methods to get to know your data set. The main reason
+you do this as prepration is to get a feel for the data. What does the
+data consist of. This can improve workflow in the future.
+
+```{r}
+str(rawDF)
+# to get a basic understanding of the data
+head(rawDF)
+# a first hand look at the data itself. To show the first few rows and column
+summary(rawDF)
+#summary of the data frame.
+```
+
+The data frame *rawDF* has 14 variables (colomns) and 615 observations
+(rows). We also have some information about the different columns. What
+different data types are present. In this data frame:
+
+All attributes except Category and Sex are numerical. The laboratory data are the attributes 5-14.
+1) X (Patient ID/No.)
+2) Category (diagnosis) (values: '0=Blood Donor', '0s=suspect Blood Donor', '1=Hepatitis', '2=Fibrosis', '3=Cirrhosis')
+3) Age (in years)
+4) Sex (f,m)
+5) ALB
+6) ALP
+7) ALT
+8) AST
+9) BIL
+10) CHE
+11) CHOL
+12) CREA
+13) GGT
+14) PROT
+
+There is also some extra info for the numerical data with the summery.
+It gives you an idea what the ranges of each column are.
+
+## Data Preparation
+
+Now we understand the data. Now we have to prepare/clean it. The
+timestamp or date-column of each measurement is not really relevant so
+we want to remove it from the raw data set.
+
+```{r}
+cleanDF <- rawDF[-1]
+
+head(cleanDF)
+```
+
+Let's try and clean the other columns as well. The variable we would
+like to predict is the Occupancy. Whether it is On or Off, 1 or 0. and
+what is the proportion of the Occupancy.
+
+```{r}
+cleanDF<- na.omit(cleanDF) # removeing the NA's in the dataset.
+cnt_Category <- table(cleanDF$Category) #Counting the different categories
+cleanDF$random <- sample(589, size = nrow(cleanDF), replace = TRUE)# adding a randomized element to the list to sort the data
+
+prop_Category <- round(prop.table(cnt_Category) * 100 , digits = 1) #getting the distribution of this column
+cleanDF[4:13] <- round(cleanDF[4:13], digits = 1) #rounding data for better visibility of column 4 to 13
+head(cleanDF)
+```
+
+
+
+
+
+
+
+
+As you can see. 226 males (61.6%) at 0 and 363 females times (38.4%) at 1, with
+a distribution of 61.6% and 38.4%
+
+```{r}
+unique(cleanDF$Category) #different types of categories
+cleanDF$Category <- factor(cleanDF$Category, levels = unique(cleanDF$Category), labels = c(1,1,0,0,0)) %>% relevel("1")
+head(cleanDF, 25)
+```
+
+```{r}
+cleanDF$random <- as.numeric(cleanDF$random)
+```
+
+
+```{r}
+
+cleanDF <- cleanDF[order(cleanDF$random),]
+
+```
+
+
+Lets check the summery of the newly cleaned data.
+
+```{r}
+summary(cleanDF[c(1:13)])
+```
+
+These 13 variables have a very different range. Certain variables will have a larger impact on the distance calculation than other variables. Because of this reason we are going to normalize the data.
+
+Creating the normalize function
+
+```{r}
+normalize <- function(x) { # Function takes in a vector
+  return ((x - min(x)) / (max(x) - min(x))) # distance of item value - minimum vector value divided by the range of all vector values
+}
+```
+
+```{r}
+# not using  the dim function here. because it is not needed in this case.
+cleanDF_n <- sapply(4:13,
+                    function(x)  {
+  normalize(cleanDF[,x])
+}) %>% as.data.frame()
+
+summary(cleanDF_n)
+```
+
+Lets split the data set to a training set and a test set. One data frame
+set without the label and one with the label data set.
+
+```{r}
+trainDF_feat <- cleanDF_n[1:300,  ]
+testDF_feat <- cleanDF_n[301:589,  ]
+
+trainDF_labels <- as.data.frame(cleanDF[1:300,  1]) #we use as.data.frame otherwise it sees it as values.
+testDF_labels <- as.data.frame(cleanDF[301:589,  1])
+```
+
+We are done with preparing the data.
+
+## Modeling
+
+To train the kNN model we only need one single function from the class
+package. It takes the set with training features and the set with
+training label. The trained model is applied to the set with test
+features and the function gives back a set of predictions.
+
+**Determining the K value** With a bit of searching a generic value can
+be used by taking the square root of the total number of observations
+for K according to
+[source](https://rstudio-pubs-static.s3.amazonaws.com/316172_a857ca788d1441f8be1bcd1e31f0e875.html)
+
+```{r}
+#calculating the K value.
+Kcalc <- round(sqrt(nrow(cleanDF_n)), digits = 0)
+```
+
+```{r}
+cleanDF_test_pred <- knn(train = as.matrix(trainDF_feat), test = as.matrix(testDF_feat), cl = as.matrix(trainDF_labels), k = Kcalc)
+head(cleanDF_test_pred)
+```
+
+## Evaluation and Deployment
+
+Let's test how well the model has predicted the Occupancy.
+
+```{r}
+confusionMatrix(cleanDF_test_pred, testDF_labels[[1]], positive = NULL, dnn = c("Prediction", "True"))
+```
+I believe the model is pretty accurate. Any suggestions or improvements are welcome :).
+
+```{r}
+unique(testDF_labels)
+```
+
+
+------------------------------------------------------------------------
+
+## Mistakes added for review
+
+For review i have made a few mistakes on purpose.
+
+Mistakes added:
+
+Did not clean very thorough 5 digits instead of 1:
+*cleanDF[1:4] <- round(cleanDF[1:4], digits = 5)*
+
+Deleted one set of the training models:
+*trainDF_feat <- cleanDF_n[1:4000,  ]*
+
+Deleted one set of the test models:
+*testDF_labels <- as.data.frame(cleanDF[4001:8143,  6])*
+
+Changes True for False in the confusionMatrix step.
+*confusionMatrix(cleanDF_test_pred, testDF_labels[[1]], positive = NULL, dnn = c("Prediction "FALSE"))*
+
+
