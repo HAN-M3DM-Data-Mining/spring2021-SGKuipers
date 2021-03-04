@@ -208,29 +208,12 @@ confusionMatrix(cleanDF_test_pred, testDF_labels[[1]], positive = NULL, dnn = c(
 ```
 I believe the model is pretty accurate. Any suggestions or improvements are welcome :).
 
-```{r}
-unique(testDF_labels)
-```
+I made an extra column with random numbers, because the data was sorted by bloodgroup. Meaning that in the training set or features set there where no data which could detect. Resulting in +/+ or +/-
+
+With this method i randomly put some Hepitictus C patients in the test and feature group. It got me a few results. increasing my accuracy!
+
 
 
 ------------------------------------------------------------------------
-
-## Mistakes added for review
-
-For review i have made a few mistakes on purpose.
-
-Mistakes added:
-
-Did not clean very thorough 5 digits instead of 1:
-*cleanDF[1:4] <- round(cleanDF[1:4], digits = 5)*
-
-Deleted one set of the training models:
-*trainDF_feat <- cleanDF_n[1:4000,  ]*
-
-Deleted one set of the test models:
-*testDF_labels <- as.data.frame(cleanDF[4001:8143,  6])*
-
-Changes True for False in the confusionMatrix step.
-*confusionMatrix(cleanDF_test_pred, testDF_labels[[1]], positive = NULL, dnn = c("Prediction "FALSE"))*
 
 
