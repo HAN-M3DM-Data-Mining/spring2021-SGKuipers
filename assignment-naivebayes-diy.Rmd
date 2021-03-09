@@ -34,24 +34,35 @@ In 2020 spam account for more than 50% of total e-mail traffic (“Spam Statisti
 url <- "SMSSpamCollection"
 rawDF <- read_delim(url, col_names = FALSE, delim = "\t") # using read_delim because of the base file used.
 colnames(rawDF) <- c("type", "text") #changing the column names.
-head(rawDF)
-
-
 ```
 
+
 The dataset has 2 variables (columns) and 5572 observations (rows).
+
+```{r}
+head(rawDF)
+```
+
+
 
 The variable type is of class character. As it indicates whether the message belongs to the category ham or spam we should convert it to a factor variable.
 ```{r}
 rawDF$type <- rawDF$type %>% factor %>% relevel("spam")
 class(rawDF$type)
 ```
+
+
 We can also visually inspect the data by creating wordclouds for each sms type.
+
+```{r}
 spam <- rawDF %>% filter(type == "spam")
 ham <- rawDF %>% filter(type == "ham")
 
 wordcloud(spam$text, max.words = 20, scale = c(4, 0.8), colors= c("indianred1","indianred2","indianred3","indianred"))
 wordcloud(ham$text, max.words = 20, scale = c(4, 0.8), colors= c("lightsteelblue1","lightsteelblue2","lightsteelblue3","lightsteelblue"))
+```
+
+
 
 The type of words are much different from eachother. in a way more friendly.
 
