@@ -33,7 +33,7 @@ In 2020 spam account for more than 50% of total e-mail traffic (“Spam Statisti
 
 ```{r}
 url <- "https://raw.githubusercontent.com/HAN-M3DM-Data-Mining/assignments/master/datasets/NB-fakenews.csv"
-rawDF <- read_csv(url)
+cleanDF <- read_csv(url)
 ```
 
 
@@ -46,20 +46,17 @@ head(rawDF)
 
 The variable type is of class character. As it indicates whether the message belongs to the category ham or spam we should convert it to a factor variable.
 ```{r}
-rawDF$label <- rawDF$label %>% factor %>% relevel("1")
-
-class(rawDF$label)
-
+cleanDF$label <- cleanDF$label %>% factor %>% relevel("1")
+class(cleanDF$label)
+```
 levels(cleanDF$label) <- c("Fake","Real")
 cleanDF$label <- cleanDF$label %>% factor %>% relevel("Fake")
-```
-
 
 We can also visually inspect the data by creating Wordclouds for each fake news message and real news message.it takes time to load!
 
 ```{r}
-fake <- cleanDF %>% filter(label == "Fake")
-real <- cleanDF %>% filter(label == "Real")
+fake <- cleanDF %>% filter(label == "1")
+real <- cleanDF %>% filter(label == "0")
 
 wordcloud(fake$text, max.words = 20, scale = c(4, 0.8), colors= c("indianred1","indianred2","indianred3","indianred"))
 wordcloud(real$text, max.words = 20, scale = c(4, 0.8), colors= c("lightsteelblue1","lightsteelblue2","lightsteelblue3","lightsteelblue"))
@@ -75,8 +72,8 @@ First we need to create a corpus, which refers to a collection of text documents
 
 
 ```{r}
-rawCorpus <- Corpus(VectorSource(cleanDF$text))
-inspect(rawCorpus[1:3])
+cleanCorpus <- Corpus(VectorSource(cleanDF$text))
+inspect(cleanCorpus[1:3])
 ```
 The corpus contains 20800 documents in 96.7Mb. Which obviously matches with the number of rows in our dataset.
 
@@ -87,7 +84,7 @@ For computation efficiency it is important to eliminate all items from a dataset
 Now that we have removed certain items, the text lines contain a lot of whitespaces where these items used to be. In our last step we will remove additional whitespace.
 
 ```{r}
-cleanCorpus <- rawCorpus %>% tm_map(tolower) %>% tm_map(removeNumbers)
+cleanCorpus <- cleanCorpus %>% tm_map(tolower) %>% tm_map(removeNumbers)
 cleanCorpus <- cleanCorpus %>% tm_map(tolower) %>% tm_map(removeWords, stopwords()) %>% tm_map(removePunctuation)
 cleanCorpus <- cleanCorpus %>% tm_map(stripWhitespace)
 ```
@@ -95,7 +92,7 @@ Let compare the clean version wit the raw version:
 ```{r}
 tibble(Raw = rawCorpus$content[1:3], Clean = cleanCorpus$content[1:3])
 ```
-```{r}
+
 Textprocessing <- function(x)
   {gsub("http[[:alnum:]]*",'', x)
   gsub('http\\S+\\s*', '', x) ## Remove URLs
@@ -112,14 +109,13 @@ Textprocessing <- function(x)
   gsub("-","",x) ## removing dash
   gsub('"',"",x) ## removing qoutation
 }
-```
 
-```{r}
+
+
 cleanCorpus <- tm_map(cleanCorpus,Textprocessing)
 tibble(Raw = rawCorpus$content[1:3], Clean = cleanCorpus$content[1:3])
 inspect(cleanCorpus[1:3])
 
-```
 
 
 Additional adds to the textprocessing function did not work.
@@ -129,23 +125,24 @@ Now that we have cleaned up the texts, we are going to transform the messages to
 cleanDTM <- cleanCorpus %>% DocumentTermMatrix
 inspect(cleanDTM)
 ```
-Before we start modeling we need to split all datasets into train and test sets. For this we will use a function from the caret package. The function createDataPartition() can be used to create balanced splits of the data. If the y argument to this function is a factor, the random sampling occurs within each class and should preserve the overall class distribution of the data. In this case we’ll create a 75/25% split.
+Before we start modeling we need to split all datasets into train and test sets. For this we will use a function from the caret package. The function createDataPartition() can be used to create balanced splits of the data. If the y argument to this function is a factor, the random sampling occurs within each class and should preserve the overall class distribution of the data. In this case we’ll create a 50/50% split.
 
 ```{r}
 # Create split indices
 set.seed(1234)
-trainIndex <- createDataPartition(rawDF$label, p = .75, 
+trainIndex <- createDataPartition(cleanDF$label, p = .5, 
                                   list = FALSE, 
                                   times = 1)
 head(trainIndex)
 ```
+
 ```{r}
 # Apply split indices to DF
-trainDF <- rawDF[trainIndex, ]
+trainDF <- cleanDF[trainIndex, ]
 ```
 
 ```{r}
-testDF <- rawDF[-trainIndex, ]
+testDF <- cleanDF[-trainIndex, ]
 
 # Apply split indices to Corpus
 trainCorpus <- cleanCorpus[trainIndex]
@@ -156,15 +153,15 @@ trainDTM <- cleanDTM[trainIndex, ]
 testDTM <- cleanDTM[-trainIndex, ]
 ```
 
-As you can check (how?) the DTM has almost 56528 columns and 15601 rows. Remember that each feature in the DTM is a word. Some words will have very few counts and therefore will have limited predictive power. To save on computation time we will eliminate words with low frequencies.
+As you can check (how?) the DTM has almost *251838* Remember that each feature in the DTM is a word. Some words will have very few counts and therefore will have limited predictive power. To save on computation time we will eliminate words with low frequencies.
 
 ```{r}
-freqWords <- trainDTM %>% findFreqTerms(5)
+freqWords <- trainDTM %>% findFreqTerms(20)
 trainDTM <-  DocumentTermMatrix(trainCorpus, list(dictionary = freqWords))
 testDTM <-  DocumentTermMatrix(testCorpus, list(dictionary = freqWords))
 ```
 
-With this operation we’ve reduced the number of features to around 56528 columns and 5199 rows.
+With this operation we’ve reduced the number of features to around *56528 columns and 5199 rows*.
 
 Another issue is that the Naive Bayes classifier is typically trained on categorical features. We now have numerical matrix with word counts. We will transform the counts into a factor that simply indicates whether the word appears in the document or not. We’ll first build our own function for this and then apply it to each column in the DTM.
 
@@ -176,11 +173,18 @@ convert_counts <- function(x) {
 
 
 ```{r}
-#Takes long to load
 nColsDTM <- dim(trainDTM)[2]
-trainDTM <- apply(trainDTM, MARGIN = 2, convert_counts)
-testDTM <- apply(testDTM, MARGIN = 2, convert_counts)
+```
 
+```{r}
+trainDTM <- apply(trainDTM, MARGIN = 2, convert_counts)
+```
+
+```{r}
+testDTM <- apply(testDTM, MARGIN = 2, convert_counts)
+```
+
+```{r}
 head(trainDTM[,1:10])
 ```
 
@@ -190,13 +194,17 @@ head(trainDTM[,1:10])
 We have now everything in place to start training our model and evaluate against our test dataset. The naiveBayes() function is part of the e1071 package. It takes in the features and labels of our training dataset and returns a trained model.
 
 ```{r}
-nbayesModel <-  naiveBayes(as.matrix(trainDTM, trainDF$label, laplace = 1))
+nbayesModel <-  naiveBayes(trainDTM, trainDF$label, laplace = 1)
 ```
 
 The model van be applied to the test features using the predict() funtion which generates a vector of predictions. Using a confusion matrix we can analyze the performance of our model.
 
+
 ```{r}
 predVec <- predict(nbayesModel, testDTM)
+```
+
+```{r}
 confusionMatrix(predVec, testDF$label, positive = "Fake", dnn = c("Prediction", "True"))
 ```
 
